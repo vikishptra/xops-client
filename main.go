@@ -49,7 +49,7 @@ func SetUpServer(postgresDB *gorm.DB, elastic *elasticsearch.Client, port string
 		ContentSecurityPolicy:     "default-src 'self'",
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000,https://localhost:3000,https://xops-api.sector.co.id,http://xops-api.sector.co.id,https://xops.sector.co.id, https://xops-staging.sector.co.id",
+		AllowOrigins:     "http://localhost:3000,https://localhost:3000,https://xops-api.sector.co.id,http://xops-api.sector.co.id,https://xops.sector.co.id, https://xops-staging.sector.co.id, https://xopsclient-api.sector.co.id,http://xopsclient-api.sector.co.i",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Set-Cookie, api-key",
 		AllowMethods:     "GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS",
 		AllowCredentials: true,
