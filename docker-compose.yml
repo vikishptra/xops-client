@@ -1,0 +1,48 @@
+version: '3'
+services:
+  # postgres:
+  #   image: postgres:latest
+  #   container_name: postgres
+  #   ports:
+  #     - '5432:5432'
+  #   volumes:
+  #     - postgresDB:/var/lib/postgresql/data
+  #   env_file:
+  #     - ./app.env
+
+  # pgAdmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: pgAdminSectorOne
+  #   env_file:
+  #     - ./app.env
+  #   ports:
+  #     - "8085:80"
+    # depends_on:
+    #   - postgres
+
+  # redis:
+  #   image: redis:alpine
+  #   container_name: redis
+  #   ports:
+  #     - '6379:6379'
+  #   volumes:
+  #     - redisDB:/data
+
+  sector-one:
+    image: ${IMAGE}
+    build:
+      context: .
+      dockerfile: DockerFile
+    container_name: xopsadmin-production
+    restart: always
+    ports:
+      - "8005:8005"
+    # depends_on:
+    #   - pgAdmin
+    #   - postgres
+    env_file:
+      - ./app.env
+
+# volumes:
+#   redisDB:
+#   postgresDB:
