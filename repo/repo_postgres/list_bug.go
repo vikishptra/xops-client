@@ -58,6 +58,7 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 			list_bugs.severity,
 			list_bugs.status,
 			list_bugs.vulnerability,
+			list_bugs.validation,
 			list_bugs.flag_domain,
 			list_bugs.created_at,
 			list_bugs.updated_at,
@@ -90,10 +91,10 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 
 	// Apply filters
 	if filter.Severity != "" {
-		query = query.Where("list_bugs.severity = ?", filter.Severity)
+		query = query.Where("list_bugs.severity = ?", strings.ToUpper(filter.Severity))
 	}
 	if filter.Status != "" {
-		query = query.Where("list_bugs.status = ?", filter.Status)
+		query = query.Where("list_bugs.status = ?", strings.ToUpper(filter.Status))
 	}
 
 	// Handle CSV export - get all records without pagination
@@ -250,7 +251,6 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 	var responseBugs []domain.ListBug
 	for _, bug := range bugs {
 		responseBug := domain.ListBug{
-
 			Id:             bug.Id,
 			NameBug:        bug.NameBug,
 			TypeBug:        bug.TypeBug,
@@ -264,7 +264,7 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 			Severity:       util_uuid.Capitalize(bug.Severity),
 			Status:         util_uuid.Capitalize(bug.Status),
 			Vulnerability:  util_uuid.Capitalize(bug.Vulnerability),
-			Validation:     bug.Validation,
+			Validation:     util_uuid.Capitalize(bug.Validation),
 			FlagDomain:     bug.FlagDomain,
 			CreatedAt:      bug.CreatedAt,
 			UpdatedAt:      bug.UpdatedAt,

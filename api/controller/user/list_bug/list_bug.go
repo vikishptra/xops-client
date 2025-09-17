@@ -83,8 +83,8 @@ func (h *ListBugTableHandler) List(c *fiber.Ctx) error {
 		Direction: direction,
 
 		// Filter parameters
-		Severity:   strings.TrimSpace(c.Query("severity")),
-		Status:     strings.TrimSpace(c.Query("status")),
+		Severity:   c.Query("severity"),
+		Status:     c.Query("status"),
 		FlagDomain: nameDomain.Domain,
 
 		// Search parameter
@@ -98,12 +98,26 @@ func (h *ListBugTableHandler) List(c *fiber.Ctx) error {
 		Convert: convert, // NEW: Add convert parameter
 	}
 
+	if filter.Severity == "all_status" {
+		filter.Severity = ""
+	}
+
+	if filter.Status == "all_severity" {
+		filter.Status = ""
+	}
+
 	// Call usecase
 	result, err := h.usecase.GetBugs(context.TODO(), filter)
 	if err != nil {
 		fmt.Printf("Error from usecase: %v\n", err)
 		response = payload.NewErrorResponse(err)
 		return c.Status(fiber.StatusBadRequest).JSON(response)
+	}
+
+	if len(result.Data) == 0 {
+		result.Success = false
+		result.Message = errorenum.DataNotFound
+		return c.Status(fiber.StatusNotFound).JSON(result)
 	}
 
 	// Handle CSV download

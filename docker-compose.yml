@@ -33,10 +33,10 @@ services:
     build:
       context: .
       dockerfile: DockerFile
-    container_name: xopsclient-production
+    container_name: xopsadmin-production
     restart: always
     ports:
-      - "8006:8006"
+      - "8005:8005"
     # depends_on:
     #   - pgAdmin
     #   - postgres

@@ -58,7 +58,7 @@ func DeserializeUser(c *fiber.Ctx) error {
 		response = payload.NewErrorResponse(errorenum.Unauthorized)
 		return c.Status(fiber.StatusUnauthorized).JSON(response)
 	}
-	if user.IdRole != 1 && user.IdRole != 2 {
+	if user.IdRole != 1 {
 		response = payload.NewErrorResponse(errorenum.Unauthorized)
 		return c.Status(fiber.StatusUnauthorized).JSON(response)
 	}
