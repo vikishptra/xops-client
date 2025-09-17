@@ -97,14 +97,14 @@ func (h *ListBugTableHandler) List(c *fiber.Ctx) error {
 		// Convert parameter
 		Convert: convert, // NEW: Add convert parameter
 	}
-
-	if filter.Severity == "all_status" {
+	if filter.Severity == "all_severity" {
 		filter.Severity = ""
 	}
 
-	if filter.Status == "all_severity" {
+	if filter.Status == "all_status" {
 		filter.Status = ""
 	}
+	fmt.Println(filter.Severity, filter.Status)
 
 	// Call usecase
 	result, err := h.usecase.GetBugs(context.TODO(), filter)
