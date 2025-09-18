@@ -26,7 +26,7 @@ func main() {
 	postgresDB := config.ConnectionToMPostGresDB(&loadConfig)
 	elastic := config.ConnectionToElastic()
 	config.ConnectRedis(&loadConfig)
-	SetUpServer(postgresDB, elastic, ":8005")
+	SetUpServer(postgresDB, elastic, ":8006")
 
 }
 
