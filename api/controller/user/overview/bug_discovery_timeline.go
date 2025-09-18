@@ -324,7 +324,7 @@ func (l *BugDiscoveryTimelineHandler) GetLogActivityController(c *fiber.Ctx) err
 
 	// Ambil params cursor dan size
 	cursor, _ := strconv.Atoi(c.Query("cursor"))
-	size, _ := strconv.Atoi(c.Query("size", "1"))
+	size, _ := strconv.Atoi(c.Query("size", "2"))
 	direction := c.Query("direction") // next / previous
 
 	// Paginate
@@ -360,7 +360,7 @@ func addAlpha(hex string, alpha int) string {
 	return fmt.Sprintf("%s%02X", hex, alpha)
 }
 func paginateSimple(results []domain_overview.LogActivity, cursor, size int, direction string) ([]domain_overview.LogActivity, domain_overview.PaginationInfo) {
-
+	fmt.Println(results)
 	total := len(results)
 	if total == 0 {
 		return []domain_overview.LogActivity{}, domain_overview.PaginationInfo{
@@ -370,15 +370,15 @@ func paginateSimple(results []domain_overview.LogActivity, cursor, size int, dir
 		}
 	}
 
-	// Hitung startIndex berdasarkan cursor + direction
-	startIndex := cursor
-	if direction == "next" {
-		startIndex = cursor + size
-	} else if direction == "previous" {
-		startIndex = cursor - size
-		if startIndex < 0 {
-			startIndex = 0
-		}
+	// Kalau cursor < 1, set default ke 1
+	if cursor < 1 {
+		cursor = 1
+	}
+
+	// Hitung startIndex berdasarkan nomor halaman (1-based)
+	startIndex := (cursor - 1) * size
+	if startIndex >= total {
+		startIndex = total
 	}
 
 	// Hitung end index
