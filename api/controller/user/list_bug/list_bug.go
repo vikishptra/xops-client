@@ -104,7 +104,6 @@ func (h *ListBugTableHandler) List(c *fiber.Ctx) error {
 	if filter.Status == "all_status" {
 		filter.Status = ""
 	}
-	fmt.Println(filter.Severity, filter.Status)
 
 	// Call usecase
 	result, err := h.usecase.GetBugs(context.TODO(), filter)

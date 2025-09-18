@@ -77,10 +77,9 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 			LOWER(list_bugs.host) LIKE ? OR 
 			UPPER(list_bugs.severity) LIKE UPPER(?) OR 
 			LOWER(list_bugs.url) LIKE ? OR 
-			list_bugs.vulnerability = ? OR
 			LOWER(list_vulnerabilities.name_bug) LIKE ? OR
 			LOWER(list_vulnerabilities.type_bug) LIKE ?`,
-			searchTerm, searchTerm, searchTerm, searchTerm, filter.Search, searchTerm, searchTerm,
+			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
 		)
 	}
 
@@ -90,10 +89,10 @@ func (r *ListBugRepo) GetBugs(ctx context.Context, filter domain.ListBugFilter) 
 	}
 
 	// Apply filters
-	if filter.Severity != "" {
+	if filter.Severity != "" && filter.Severity != "all_severity" {
 		query = query.Where("list_bugs.severity = ?", strings.ToUpper(filter.Severity))
 	}
-	if filter.Status != "" {
+	if filter.Status != "" && filter.Status != "all_status" {
 		query = query.Where("list_bugs.status = ?", strings.ToUpper(filter.Status))
 	}
 
@@ -345,7 +344,7 @@ func (r *ListBugRepo) checkHasPrevious(ctx context.Context, filter domain.ListBu
 		Joins("LEFT JOIN list_vulnerabilities ON list_bugs.id_list_vulnerability = list_vulnerabilities.unique_id")
 
 	// Apply same filters
-	r.applyFilters(query, filter)
+	query = r.applyFilters(query, filter)
 
 	// Check for records before first item based on sort order
 	if filter.SortOrder == "desc" {
@@ -366,7 +365,7 @@ func (r *ListBugRepo) checkHasNext(ctx context.Context, filter domain.ListBugFil
 		Joins("LEFT JOIN list_vulnerabilities ON list_bugs.id_list_vulnerability = list_vulnerabilities.unique_id")
 
 	// Apply same filters
-	r.applyFilters(query, filter)
+	query = r.applyFilters(query, filter)
 
 	// Check for records after last item based on sort order
 	if filter.SortOrder == "desc" {
@@ -379,31 +378,34 @@ func (r *ListBugRepo) checkHasNext(ctx context.Context, filter domain.ListBugFil
 	return count > 0
 }
 
-// FIXED: Helper function to apply common filters
-func (r *ListBugRepo) applyFilters(query *gorm.DB, filter domain.ListBugFilter) {
+// FIXED: Helper function to apply common filters - returns modified query
+func (r *ListBugRepo) applyFilters(query *gorm.DB, filter domain.ListBugFilter) *gorm.DB {
 	if filter.Search != "" {
 		searchTerm := "%" + strings.ToLower(filter.Search) + "%"
-		query.Where(`
+		query = query.Where(`
 			UPPER(list_bugs.status) LIKE UPPER(?) OR 
 			LOWER(list_bugs.host) LIKE ? OR 
 			UPPER(list_bugs.severity) LIKE UPPER(?) OR 
 			LOWER(list_bugs.url) LIKE ? OR 
-			list_bugs.vulnerability = ? OR
 			LOWER(list_vulnerabilities.name_bug) LIKE ? OR
 			LOWER(list_vulnerabilities.type_bug) LIKE ?`,
-			searchTerm, searchTerm, searchTerm, searchTerm, filter.Search, searchTerm, searchTerm,
+			searchTerm, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm,
 		)
 	}
 
 	if filter.FlagDomain != "" {
-		query.Where("list_bugs.flag_domain = ?", filter.FlagDomain)
+		query = query.Where("list_bugs.flag_domain = ?", filter.FlagDomain)
 	}
 
+	// FIXED: Handle severity filter properly, exclude "all_severity"
 	if filter.Severity != "" {
-		query.Where("list_bugs.severity = ?", filter.Severity)
+		query = query.Where("list_bugs.severity = ?", strings.ToUpper(filter.Severity))
 	}
 
+	// FIXED: Handle status filter properly, exclude "all_status"
 	if filter.Status != "" {
-		query.Where("list_bugs.status = ?", filter.Status)
+		query = query.Where("list_bugs.status = ?", strings.ToUpper(filter.Status))
 	}
+
+	return query
 }

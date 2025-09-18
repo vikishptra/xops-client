@@ -1784,38 +1784,75 @@ func (r *BugDiscoveryTimelineRepo) GetTotalFindingsWithTrend(
 	ctx context.Context,
 	domainName string,
 ) (*domain_overview.ResponseTotalFindings, error) {
-	// Hitung tanggal untuk minggu ini dan minggu lalu
 	now := time.Now()
 	weekAgo := now.AddDate(0, 0, -7)
 	twoWeeksAgo := now.AddDate(0, 0, -14)
 
-	// Query untuk data minggu ini
+	// === Query all time (untuk total) ===
+	allTimeQuery := buildAllTimeFindingsQuery(domainName)
+	allTimeData, err := r.executeFindingsQuery(ctx, allTimeQuery, "all_time")
+	if err != nil {
+		return nil, fmt.Errorf("error fetching all time data: %w", err)
+	}
+
+	// === Query minggu ini ===
 	currentWeekQuery := buildFindingsQuery(domainName, weekAgo, now)
 	currentWeekData, err := r.executeFindingsQuery(ctx, currentWeekQuery, "current_week")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching current week data: %w", err)
 	}
 
-	// Query untuk data minggu lalu
+	// === Query minggu lalu ===
 	lastWeekQuery := buildFindingsQuery(domainName, twoWeeksAgo, weekAgo)
 	lastWeekData, err := r.executeFindingsQuery(ctx, lastWeekQuery, "last_week")
 	if err != nil {
 		return nil, fmt.Errorf("error fetching last week data: %w", err)
 	}
 
-	// Hitung trend
-	trendData := calculateTrendData(currentWeekData, lastWeekData)
+	// === Hitung trend ===
+	trendData := calculateTrendData(allTimeData, currentWeekData, lastWeekData)
 
-	// Total semua severity
+	// === Hitung total all time ===
 	var total int64
-	for _, item := range trendData {
-		total += int64(item.Total)
+	for _, count := range allTimeData {
+		total += int64(count)
 	}
 
 	return &domain_overview.ResponseTotalFindings{
 		TotalData: total,
 		ListData:  trendData,
 	}, nil
+}
+
+func buildAllTimeFindingsQuery(domainName string) map[string]interface{} {
+	return map[string]interface{}{
+		"size": 0,
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must": []interface{}{
+					map[string]interface{}{
+						"terms": map[string]interface{}{
+							"validation.keyword": []interface{}{"FIXED", "VALIDATED", "PENDING"},
+						},
+					},
+					map[string]interface{}{
+						"term": map[string]interface{}{
+							"flag_domain.keyword": domainName,
+						},
+					},
+				},
+			},
+		},
+		"aggs": map[string]interface{}{
+			"severity_counts": map[string]interface{}{
+				"terms": map[string]interface{}{
+					"field":   "severity.keyword",
+					"size":    1000,
+					"missing": "Unknown",
+				},
+			},
+		},
+	}
 }
 
 // buildFindingsQuery membangun Elasticsearch query dengan perbaikan
@@ -1840,7 +1877,13 @@ func buildFindingsQuery(domainName string, startTime, endTime time.Time) map[str
 					},
 					map[string]interface{}{
 						"terms": map[string]interface{}{
-							"validation.keyword": []string{"FIXED", "VALIDATED", "PENDING"}},
+							"validation.keyword": []interface{}{"FIXED", "VALIDATED", "PENDING"},
+						},
+					},
+					map[string]interface{}{
+						"term": map[string]interface{}{
+							"flag_domain.keyword": domainName,
+						},
 					},
 				},
 			},
@@ -1868,37 +1911,11 @@ func buildFindingsQuery(domainName string, startTime, endTime time.Time) map[str
 		},
 	}
 
-	// Perbaikan filter domain - gunakan wildcard atau contains untuk menangani subdomain
-	if domainName != "" && domainName != "all" {
-		mustFilters := query["query"].(map[string]interface{})["bool"].(map[string]interface{})["must"].([]interface{})
-
-		// Opsi 1: Gunakan wildcard untuk menangani subdomain
-		mustFilters = append(mustFilters, map[string]interface{}{
-			"wildcard": map[string]interface{}{
-				"host.keyword": fmt.Sprintf("*%s", domainName),
-			},
-		})
-
-		// Opsi 2: Alternatif menggunakan terms dengan semua kemungkinan subdomain
-		// mustFilters = append(mustFilters, map[string]interface{}{
-		// 	"terms": map[string]interface{}{
-		// 		"host.keyword": []string{
-		// 			domainName,
-		// 			fmt.Sprintf("api.%s", domainName),
-		// 			fmt.Sprintf("www.%s", domainName),
-		// 		},
-		// 	},
-		// })
-
-		query["query"].(map[string]interface{})["bool"].(map[string]interface{})["must"] = mustFilters
-	}
-
 	return query
 }
 
-// calculateTrendData - perbaikan untuk menangani case sensitivity
-func calculateTrendData(currentWeek, lastWeek map[string]int) []domain_overview.TotalFindingsCount {
-	// Mapping severity dari format data ke format yang diharapkan
+// calculateTrendData sekarang butuh allTimeData juga
+func calculateTrendData(allTime, currentWeek, lastWeek map[string]int) []domain_overview.TotalFindingsCount {
 	severityMapping := map[string]string{
 		"CRITICAL":    "Critical",
 		"HIGH":        "High",
@@ -1906,18 +1923,15 @@ func calculateTrendData(currentWeek, lastWeek map[string]int) []domain_overview.
 		"LOW":         "Low",
 		"INFORMATION": "Information",
 	}
-
-	// Daftar severity yang akan diproses (format output)
 	severities := []string{"Critical", "High", "Medium", "Low", "Information"}
 
 	var results []domain_overview.TotalFindingsCount
 
 	for i, severity := range severities {
-		// Cari nilai dari berbagai kemungkinan key
 		currentCount := 0
 		lastCount := 0
+		allTimeCount := 0
 
-		// Cek semua kemungkinan variasi nama severity
 		for dataKey, mappedSeverity := range severityMapping {
 			if mappedSeverity == severity {
 				if count, exists := currentWeek[dataKey]; exists {
@@ -1926,21 +1940,24 @@ func calculateTrendData(currentWeek, lastWeek map[string]int) []domain_overview.
 				if count, exists := lastWeek[dataKey]; exists {
 					lastCount += count
 				}
+				if count, exists := allTime[dataKey]; exists {
+					allTimeCount += count
+				}
 			}
 		}
 
-		// Juga cek dengan nama yang sama persis (case sensitive)
+		// Juga cek exact match
 		if count, exists := currentWeek[severity]; exists {
 			currentCount += count
 		}
 		if count, exists := lastWeek[severity]; exists {
 			lastCount += count
 		}
-
-		// Hitung persentase perubahan
-		var trendStatus string
-		var trendSum string
-
+		if count, exists := allTime[severity]; exists {
+			allTimeCount += count
+		}
+		// Hitung tren
+		var trendStatus, trendSum string
 		if lastCount == 0 {
 			if currentCount > 0 {
 				trendStatus = "Up"
@@ -1951,7 +1968,7 @@ func calculateTrendData(currentWeek, lastWeek map[string]int) []domain_overview.
 			}
 		} else {
 			change := float64(currentCount-lastCount) / float64(lastCount) * 100
-
+			fmt.Println(change)
 			if change > 0 {
 				trendStatus = "Up"
 				trendSum = fmt.Sprintf("%.0f%%", change)
@@ -1967,7 +1984,7 @@ func calculateTrendData(currentWeek, lastWeek map[string]int) []domain_overview.
 		results = append(results, domain_overview.TotalFindingsCount{
 			ID:          fmt.Sprintf("%d", i+1),
 			Severity:    severity,
-			Total:       currentCount,
+			Total:       allTimeCount,
 			TrendStatus: trendStatus,
 			TrendSum:    trendSum,
 		})

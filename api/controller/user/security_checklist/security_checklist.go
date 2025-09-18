@@ -2,7 +2,6 @@ package controller_security_checklist
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -123,7 +122,6 @@ func (l *SecurityCheklistHandler) GetSecurityChecklistTableController(c *fiber.C
 	if params.Status == "all_status" {
 		params.Status = ""
 	}
-	fmt.Println(params)
 	// Parse sort_order parameter
 	if sortOrder := c.Query("sort_order"); sortOrder != "" {
 		if sortOrder == "oldest" || sortOrder == "newest" {
