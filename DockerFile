@@ -9,8 +9,8 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN go build -o xops-admin
+RUN go build -o xops-client
 
-EXPOSE 8005
+EXPOSE 8006
 
-CMD ["./xops-admin"]
+CMD ["./xops-client"]
